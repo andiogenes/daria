@@ -87,4 +87,101 @@ internal class InterpreterTest {
         val got = Interpreter(Scope()).eval(expr)
         assertEquals(expected, got)
     }
+
+    @Test
+    fun `Nested invocations`() {
+        // and :true :true = :true
+        // and _ _ = :false
+        //
+        // or :false :false = :false
+        // or _ _ = :true
+        //
+        // and (or :true :false) (or :false :true) ; == :true
+        val definitions = listOf(
+            Pattern.Definition(
+                "and",
+                listOf(Pattern.Value("true"), Pattern.Value("true")),
+                Pattern.Value("true")
+            ),
+            Pattern.Definition(
+                "and",
+                listOf(Pattern.Invocation("_", listOf()), Pattern.Invocation("_", listOf())),
+                Pattern.Value("false")
+            ),
+            Pattern.Definition(
+                "or",
+                listOf(Pattern.Value("false"), Pattern.Value("false")),
+                Pattern.Value("false")
+            ),
+            Pattern.Definition(
+                "or",
+                listOf(Pattern.Invocation("_", listOf()), Pattern.Invocation("_", listOf())),
+                Pattern.Value("true")
+            )
+        )
+
+
+        val query = Pattern.Invocation(
+            "and",
+            listOf(
+                Pattern.Invocation("or", listOf(Pattern.Value("true"), Pattern.Value("false"))),
+                Pattern.Invocation("or", listOf(Pattern.Value("false"), Pattern.Value("true")))
+            )
+        )
+
+        val expected = Pattern.Value("true")
+
+        val got = Interpreter(Scope()).run {
+            eval(definitions)
+            eval(query)
+        }
+
+        assertEquals(expected, got)
+    }
+
+    @Test
+    fun `Local scope`() {
+        // identity x = x
+        // identity :self ; => :self
+
+        val definition = Pattern.Definition(
+            "identity",
+            listOf(Pattern.Invocation("x", listOf())),
+            Pattern.Invocation("x", listOf())
+        )
+
+        val query = Pattern.Invocation("identity", listOf(Pattern.Value("self")))
+
+        val expected = Pattern.Value("self")
+
+        val got = Interpreter(Scope()).run {
+            eval(definition)
+            eval(query)
+        }
+
+        assertEquals(expected, got)
+    }
+
+    @Test
+    fun `Invocation in body`() {
+        // foo = :bar
+        // baz = foo
+        // baz ; => :bar
+
+        val definitions = listOf(
+            Pattern.Definition("foo", listOf(), Pattern.Value("bar")),
+            Pattern.Definition("baz", listOf(), Pattern.Invocation("foo", listOf()))
+        )
+
+        val query = Pattern.Invocation("baz", listOf())
+
+        val expected = Pattern.Value("bar")
+
+        val got = Interpreter(Scope()).run {
+            eval(definitions)
+            eval(query)
+        }
+
+        assertEquals(expected, got)
+    }
 }
