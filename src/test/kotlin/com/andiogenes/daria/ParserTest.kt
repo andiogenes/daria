@@ -10,7 +10,15 @@ internal class ParserTest {
 
     @Test
     fun simple() {
-        val source = "and :true :true = :true"
+        // and :true :true = :true
+        val source = listOf(
+            Token.Identifier("and"),
+            Token.Value("true"),
+            Token.Value("true"),
+            Token.Equal,
+            Token.Value("true"),
+            Token.EndOfFile
+        )
 
         val expected = listOf(
             Pattern.Definition(
@@ -19,14 +27,23 @@ internal class ParserTest {
                 Pattern.Value("true")
             )
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
 
         assertEquals(expected, got)
     }
 
     @Test
     fun `Line Break`() {
-        val source = "and :true :true = :true\n"
+        // and :true :true = :true\n
+        val source = listOf(
+            Token.Identifier("and"),
+            Token.Value("true"),
+            Token.Value("true"),
+            Token.Equal,
+            Token.Value("true"),
+            Token.LineBreak,
+            Token.EndOfFile
+        )
 
         val expected = listOf(
             Pattern.Definition(
@@ -35,13 +52,27 @@ internal class ParserTest {
                 Pattern.Value("true")
             )
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
         assertEquals(expected, got)
     }
 
     @Test
     fun `Line Breaks`() {
-        val source = "\n\n\nand :true :true = :true\n\n\n\n"
+        // \n\n\nand :true :true = :true\n\n\n\n
+        val source = listOf(
+            Token.LineBreak,
+            Token.LineBreak,
+            Token.Identifier("and"),
+            Token.Value("true"),
+            Token.Value("true"),
+            Token.Equal,
+            Token.Value("true"),
+            Token.LineBreak,
+            Token.LineBreak,
+            Token.LineBreak,
+            Token.LineBreak,
+            Token.EndOfFile
+        )
 
         val expected = listOf(
             Pattern.Definition(
@@ -50,19 +81,28 @@ internal class ParserTest {
                 Pattern.Value("true")
             )
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
         assertEquals(expected, got)
     }
 
     @Test
     fun `Complex Source File`() {
-        val source = """
-            and :true :true = :true
-            and _ _ = :false
+        // and :true :true = :true
+        // and _ _ = :false
 
-            or :false :false = :false
-            or _ _ = :true
-        """.trimIndent()
+        // or :false :false = :false
+        // or _ _ = :true
+
+        val source = listOf(
+            Token.Identifier("and"), Token.Value("true"), Token.Value("true"), Token.Equal, Token.Value("true"),
+            Token.LineBreak,
+            Token.Identifier("and"), Token.Identifier("_"), Token.Identifier("_"), Token.Equal, Token.Value("false"),
+            Token.LineBreak, Token.LineBreak,
+            Token.Identifier("or"), Token.Value("false"), Token.Value("false"), Token.Equal, Token.Value("false"),
+            Token.LineBreak,
+            Token.Identifier("or"), Token.Identifier("_"), Token.Identifier("_"), Token.Equal, Token.Value("true"),
+            Token.EndOfFile
+        )
 
         val expected = listOf(
             Pattern.Definition(
@@ -86,16 +126,26 @@ internal class ParserTest {
                 Pattern.Value("true")
             )
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
         assertEquals(expected, got)
     }
 
     @Test
     fun `Parenthesised expressions`() {
-        val source = """
-            fac :0 = :1
-            fac x = * x (fac (- x :1))
-        """.trimIndent()
+        // fac :0 = :1
+        // fac x = * x (fac (- x :1))
+
+        val source = listOf(
+            Token.Identifier("fac"), Token.Value("0"), Token.Equal, Token.Value("1"),
+            Token.LineBreak,
+            Token.Identifier("fac"), Token.Identifier("x"), Token.Equal,
+            Token.Identifier("*"), Token.Identifier("x"),
+            Token.LeftParen,
+            Token.Identifier("fac"),
+            Token.LeftParen,
+            Token.Identifier("-"), Token.Identifier("x"), Token.Value("1"),
+            Token.RightParen, Token.RightParen, Token.EndOfFile
+        )
 
         val expected = listOf(
             Pattern.Definition(
@@ -126,20 +176,35 @@ internal class ParserTest {
                 )
             )
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
         assertEquals(expected, got)
     }
 
     @Test
     fun `Empty Source`() {
         val expected = listOf<Pattern>()
-        val got = Parser(Lexer("").lex()).parse()
+        val got = Parser(listOf(Token.EndOfFile)).parse()
         assertEquals(expected, got)
     }
 
+    @ExperimentalStdlibApi
     @Test
     fun `Deep parentheses`() {
-        val source = "deep = ((((((x y))))))"
+        // deep = ((((((x y))))))
+
+        val source = buildList {
+            add(Token.Identifier("deep"))
+            add(Token.Equal)
+            repeat(6) {
+                add(Token.LeftParen)
+            }
+            add(Token.Identifier("x"))
+            add(Token.Identifier("y"))
+            repeat(6) {
+                add(Token.RightParen)
+            }
+            add(Token.EndOfFile)
+        }
 
         val expected = listOf(
             Pattern.Definition(
@@ -156,62 +221,110 @@ internal class ParserTest {
                 )
             )
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
         assertEquals(expected, got)
     }
 
+    @ExperimentalStdlibApi
     @Test
     fun `Unmatched parentheses 1`() {
-        val source = "deep = (((((x y))))))"
+        // deep = (((((x y))))))
+        val source = buildList {
+            add(Token.Identifier("deep"))
+            add(Token.Equal)
+            for (v in "(((((") {
+                add(Token.LeftParen)
+            }
+            add(Token.Identifier("x"))
+            add(Token.Identifier("y"))
+            for (v in "))))))") {
+                add(Token.RightParen)
+            }
+            add(Token.EndOfFile)
+        }
+
         assertThrows(Parser.ParseError::class.java) {
-            Parser(Lexer(source).lex()).parse()
+            Parser(source).parse()
         }
     }
 
+    @ExperimentalStdlibApi
     @Test
     fun `Unmatched parentheses 2`() {
-        val source = "deep = ((((((x y)))))"
+        // deep = ((((((x y)))))
+        val source = buildList {
+            add(Token.Identifier("deep"))
+            add(Token.Equal)
+            for (v in "((((((") {
+                add(Token.LeftParen)
+            }
+            add(Token.Identifier("x"))
+            add(Token.Identifier("y"))
+            for (v in ")))))") {
+                add(Token.RightParen)
+            }
+            add(Token.EndOfFile)
+        }
+
         assertThrows(Parser.ParseError::class.java) {
-            Parser(Lexer(source).lex()).parse()
+            Parser(source).parse()
         }
     }
 
     @Test
     fun `Unmatched parentheses 3`() {
-        val source = "che = prost)"
+        // che = prost)
+        val source = listOf(
+            Token.Identifier("che"),
+            Token.Equal,
+            Token.Identifier("prost"),
+            Token.RightParen,
+            Token.EndOfFile
+        )
+
         assertThrows(Parser.ParseError::class.java) {
-            Parser(Lexer(source).lex()).parse()
+            Parser(source).parse()
         }
     }
 
     @Test
     fun `Unmatched parentheses 4`() {
-        val source = """
-            fac 0 = 1
-            fac x = * x (fac (- x 1)
-        """.trimIndent()
+        // fac :0 = :1
+        // fac x = * x (fac (- x :1)
+        val source = listOf(
+            Token.Identifier("fac"), Token.Value("0"), Token.Equal, Token.Value("1"),
+            Token.LineBreak,
+            Token.Identifier("fac"), Token.Identifier("x"), Token.Equal,
+            Token.Identifier("*"), Token.Identifier("x"), Token.LeftParen,
+            Token.Identifier("fac"), Token.LeftParen,
+            Token.Identifier("-"), Token.Identifier("x"), Token.Value("1"), Token.RightParen,
+            Token.EndOfFile
+        )
+
         assertThrows(Parser.ParseError::class.java) {
-            Parser(Lexer(source).lex()).parse()
+            Parser(source).parse()
         }
     }
 
     @Test
     fun `Unexpected token at start`() {
-        val suffix = "= ="
+        // = =
+        val suffix = listOf(Token.Equal, Token.Equal, Token.EndOfFile)
+
         assertAll(
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer("= $suffix").lex()).parse()
+                    Parser(listOf(Token.Equal) + suffix).parse()
                 }
             },
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer("( $suffix").lex()).parse()
+                    Parser(listOf(Token.LeftParen) + suffix).parse()
                 }
             },
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer(") $suffix").lex()).parse()
+                    Parser(listOf(Token.RightParen) + suffix).parse()
                 }
             }
         )
@@ -219,24 +332,33 @@ internal class ParserTest {
 
     @Test
     fun `Unexpected invocations`() {
-        val source = "def (foo bar) = baz"
+        // def (foo bar) = baz
+        val source = listOf(
+            Token.Identifier("def"),
+            Token.LeftParen, Token.Identifier("foo"), Token.Identifier("bar"), Token.RightParen,
+            Token.Equal,
+            Token.Identifier("baz"), Token.EndOfFile
+        )
+
         assertThrows(Parser.ParseError::class.java) {
-            Parser(Lexer(source).lex()).parse()
+            Parser(source).parse()
         }
     }
 
     @Test
     fun `Unexpected token at the end of invocation`() {
-        val prefix = "f x y"
+        // f x y
+        val prefix = "f x y".split(" ").map { Token.Identifier(it) }
+
         assertAll(
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer("$prefix)").lex()).parse()
+                    Parser(prefix + listOf(Token.RightParen, Token.EndOfFile)).parse()
                 }
             },
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer("$prefix(").lex()).parse()
+                    Parser(prefix + listOf(Token.LeftParen, Token.EndOfFile)).parse()
                 }
             }
         )
@@ -244,16 +366,22 @@ internal class ParserTest {
 
     @Test
     fun `Unexpected token at the end of definition`() {
-        val prefix = "g y x = f x y"
+        // g y x = f x y
+        val prefix = listOf(
+            Token.Identifier("g"), Token.Identifier("y"), Token.Identifier("x"),
+            Token.Equal,
+            Token.Identifier("f"), Token.Identifier("x"), Token.Identifier("y")
+        )
+
         assertAll(
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer("$prefix)").lex()).parse()
+                    Parser(prefix + listOf(Token.RightParen, Token.EndOfFile)).parse()
                 }
             },
             Executable {
                 assertThrows(Parser.ParseError::class.java) {
-                    Parser(Lexer("$prefix(").lex()).parse()
+                    Parser(prefix + listOf(Token.LeftParen, Token.EndOfFile)).parse()
                 }
             }
         )
@@ -261,20 +389,28 @@ internal class ParserTest {
 
     @Test
     fun `Empty definition body`() {
-        val source = "empty body ="
+        // empty body =
+        val source = listOf(
+            Token.Identifier("empty"),
+            Token.Identifier("body"),
+            Token.Equal,
+            Token.EndOfFile
+        )
+
         assertThrows(Parser.ParseError::class.java) {
-            Parser(Lexer(source).lex()).parse()
+            Parser(source).parse()
         }
     }
 
     @Test
     fun `Value expression`() {
-        val source = ":true"
+        // :true
+        val source = listOf(Token.Value("true"), Token.EndOfFile)
 
         val expected = listOf(
             Pattern.Value("true")
         )
-        val got = Parser(Lexer(source).lex()).parse()
+        val got = Parser(source).parse()
 
         assertEquals(expected, got)
     }

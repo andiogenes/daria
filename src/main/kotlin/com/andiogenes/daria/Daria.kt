@@ -1,7 +1,7 @@
 package com.andiogenes.daria
 
 fun main() {
-    val source = """
+    val stdlib = """
         and :true :true = :true
         and _ _ = :false
 
@@ -11,17 +11,28 @@ fun main() {
         xor :true :true = :false
         xor :false :false = :false
         xor _ _ = :true
-        
-        and :true :false
     """.trimIndent()
-    val lexer = Lexer(source)
+
+    val lexer = Lexer(stdlib)
     val parser = Parser(lexer.lex())
     val interpreter = Interpreter(Scope())
 
     val ast = parser.parse()
 
-    interpreter.eval(ast.dropLast(1))
-    interpreter.eval(ast.last())?.also { PrettyPrinter().print(listOf(it)) }
+    interpreter.eval(ast)
 
-    PrettyPrinter().print(ast)
+    // REPL
+    while (true) {
+        print("> ")
+        val line = readLine()!!
+        if (line.startsWith(";exit")) break
+
+        Lexer(line).lex().let {
+            Parser(it).parse()
+        }.let {
+            interpreter.eval(it.first())
+        }?.let {
+            println(":${it.name}")
+        }
+    }
 }
