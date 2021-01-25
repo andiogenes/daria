@@ -7,27 +7,37 @@ class Interpreter(private val scope: Scope) {
 
     fun eval(patterns: List<Pattern>) = patterns.forEach { eval(it) }
 
-    fun eval(pattern: Pattern): Any = when (pattern) {
-        is Pattern.Definition ->
-            definePattern(pattern.name, pattern.args, pattern.body)
-        is Pattern.Invocation ->
-            invokePattern(pattern.name, pattern.args)
+    fun eval(pattern: Pattern): Pattern.Value? = when (pattern) {
+        is Pattern.Definition -> definePattern(pattern.name, pattern.args, pattern.body)
+        is Pattern.Invocation -> invokePattern(pattern.name, pattern.args)
+        is Pattern.Value -> pattern
     }
 
     private fun invokePattern(
         name: String,
-        args: List<Pattern.Invocation>,
-        localScope: Map<String, String>? = null
-    ): String {
-        val invokedArgs = args.map { invokePattern(it.name, it.args) }
-        val (pattern, body) = scope[name, invokedArgs] ?: return localScope?.get(name) ?: name
+        args: List<Pattern>,
+        localScope: Map<String, Pattern.Value>? = null
+    ): Pattern.Value {
+        val invokedArgs = args.map {
+            when (it) {
+                is Pattern.Invocation -> invokePattern(it.name, it.args)
+                is Pattern.Value -> it
+                else -> throw RuntimeError("Can't invoke the definition")
+            }
+        }
+        val (pattern, body) = scope[name, invokedArgs] ?: return localScope?.get(name) ?: Pattern.Value(name)
 
-        val ls = pattern.zip(invokedArgs).toMap()
+        val ls = pattern.map { it.fullName }.zip(invokedArgs).toMap()
 
-        return invokePattern(body.name, body.args, localScope = ls)
+        return when (body) {
+            is Pattern.Invocation -> invokePattern(body.name, body.args, localScope = ls)
+            is Pattern.Value -> body
+            else -> throw RuntimeError("Can't invoke the definition")
+        }
     }
 
-    private fun definePattern(name: String, args: List<String>, body: Pattern.Invocation) {
+    private fun definePattern(name: String, args: List<Pattern>, body: Pattern): Pattern.Value? {
         scope[name] = args to body
+        return null
     }
 }

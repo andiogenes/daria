@@ -1,7 +1,6 @@
 package com.andiogenes.daria
 
 import com.andiogenes.daria.expressions.Pattern
-import com.andiogenes.daria.utils.Either
 
 class Parser(private val tokens: List<Token>) {
     class ParseError(message: String) : RuntimeException(message)
@@ -22,46 +21,39 @@ class Parser(private val tokens: List<Token>) {
     private fun definitionOrInvocation(): Pattern? {
         val name = when (val token = advance()) {
             is Token.Identifier -> token.name
+            is Token.Value -> return Pattern.Value(token.name)
             is Token.LineBreak -> return null
             else -> throw ParseError("Unexpected token")
         }
 
-        val args = commonArguments()
+        val (args, isDefinitionArgs) = commonArguments()
 
         when (val token = peek()) {
             is Token.LineBreak, Token.EndOfFile -> {
                 if (token == Token.LineBreak) advance()
 
-                val invocationArgs = when (args) {
-                    is Either.Left -> args.l
-                    is Either.Right -> args.r.map { Pattern.Invocation(it, listOf()) }
-                }
-
-                return Pattern.Invocation(name, invocationArgs)
+                return Pattern.Invocation(name, args)
             }
             is Token.Equal -> {
                 advance()
 
-                val definitionArgs = when (args) {
-                    is Either.Left -> throw ParseError("Unexpected invocations")
-                    is Either.Right -> args.r
-                }
+                if (!isDefinitionArgs && args.any { it is Pattern.Invocation && it.args.isNotEmpty() }) throw ParseError("Unexpected invocations")
 
                 val patternInvocation = invocation()
 
                 when (peek()) {
                     is Token.LineBreak -> advance()
-                    is Token.EndOfFile -> Unit
+                    is Token.EndOfFile -> {}
                     else -> throw ParseError("Unexpected token")
                 }
 
-                return Pattern.Definition(name, definitionArgs, patternInvocation)
+                return Pattern.Definition(name, args, patternInvocation)
             }
             else -> throw ParseError("Unexpected token")
         }
     }
 
-    private fun invocation(isArgument: Boolean = false): Pattern.Invocation {
+    private fun invocation(isArgument: Boolean = false): Pattern {
         if (peek() == Token.LeftParen) {
             advance()
 
@@ -75,22 +67,19 @@ class Parser(private val tokens: List<Token>) {
             return pattern
         }
 
-        val name = when (val token = advance()) {
-            is Token.Identifier -> token.name
+        return when (val token = advance()) {
+            is Token.Identifier -> {
+                val name = token.name
+                val args = if (isArgument) listOf() else invocationArguments()
+                Pattern.Invocation(name, args)
+            }
+            is Token.Value -> Pattern.Value(token.name)
             else -> throw ParseError("Unexpected token")
         }
-
-        val args = if (isArgument) {
-            listOf()
-        } else {
-            invocationArguments()
-        }
-
-        return Pattern.Invocation(name, args)
     }
 
-    private fun invocationArguments(): List<Pattern.Invocation> {
-        val args = mutableListOf<Pattern.Invocation>()
+    private fun invocationArguments(): List<Pattern> {
+        val args = mutableListOf<Pattern>()
 
         loop@ while (true) {
             when (peek()) {
@@ -105,8 +94,8 @@ class Parser(private val tokens: List<Token>) {
         return args
     }
 
-    private fun commonArguments(): Either<List<Pattern.Invocation>, List<String>> {
-        val args = mutableListOf<Any>()
+    private fun commonArguments(): Pair<List<Pattern>, Boolean> {
+        val args = mutableListOf<Pattern>()
         var isDefinitionArgs = true
 
         loop@ while (true) {
@@ -119,24 +108,19 @@ class Parser(private val tokens: List<Token>) {
                     args.add(invocation())
                 }
                 is Token.Identifier -> {
-                    args.add(token.name)
+                    isDefinitionArgs = false
+                    args.add(Pattern.Invocation(token.name, listOf()))
+                    advance()
+                }
+                is Token.Value -> {
+                    args.add(Pattern.Value(token.name))
                     advance()
                 }
                 else -> throw ParseError("Unexpected token")
             }
         }
 
-        return if (isDefinitionArgs) {
-            Either.Right(args.map { it as String })
-        } else {
-            Either.Left(args.map {
-                if (it is String) {
-                    Pattern.Invocation(it, listOf())
-                } else {
-                    it as Pattern.Invocation
-                }
-            })
-        }
+        return args to isDefinitionArgs
     }
 
     private fun isAtEnd() =

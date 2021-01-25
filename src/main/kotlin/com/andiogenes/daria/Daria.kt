@@ -1,34 +1,38 @@
 package com.andiogenes.daria
 
 fun main() {
-    /**
-     * Проблемес:
-     * 1. Не совсем правильная модель паттерн-матчинга
-     * 2. К локальной области видимости не присоединяются отброшенные при zip значения
-     * 3. Локальная область видимости привязана к ближайшим аргументам шаблона
-     */
+    val stdlib = """
+        and :true :true = :true
+        and _ _ = :false
 
-    val source = """
-        and true true = true
-        and _ _ = false
+        or :false :false = :false
+        or _ _ = :true
 
-        or false false = false
-        or _ _ = true
-
-        xor true true = false
-        xor false false = false
-        xor _ _ = true
-        
-        and true false
+        xor :true :true = :false
+        xor :false :false = :false
+        xor _ _ = :true
     """.trimIndent()
-    val lexer = Lexer(source)
+
+    val lexer = Lexer(stdlib)
     val parser = Parser(lexer.lex())
     val interpreter = Interpreter(Scope())
 
     val ast = parser.parse()
 
-    interpreter.eval(ast.dropLast(1))
-    println(interpreter.eval(ast.last()))
+    interpreter.eval(ast)
 
-    PrettyPrinter().eval(ast)
+    // REPL
+    while (true) {
+        print("> ")
+        val line = readLine()!!
+        if (line.startsWith(";exit")) break
+
+        Lexer(line).lex().let {
+            Parser(it).parse()
+        }.let {
+            interpreter.eval(it.first())
+        }?.let {
+            println(":${it.name}")
+        }
+    }
 }

@@ -146,4 +146,71 @@ internal class LexerTest {
         val got = Lexer("").lex()
         assertEquals(expected, got)
     }
+
+    @Test
+    fun `Simple values`() {
+        val source = "and :true :true = :true"
+        val expected = listOf(
+            Token.Identifier("and"),
+            Token.Value("true"),
+            Token.Value("true"),
+            Token.Equal,
+            Token.Value("true"),
+            Token.EndOfFile
+        )
+        val got = Lexer(source).lex()
+
+        assertEquals(expected, got)
+    }
+
+    @Test
+    fun `Values Conclusion`() {
+        val sourcesToExpected = listOf(
+            ":foo bar" to listOf(Token.Value("foo"), Token.Identifier("bar")),
+            "(:foo)" to listOf(Token.LeftParen, Token.Value("foo"), Token.RightParen),
+            ":foo=:foo" to listOf(Token.Value("foo"), Token.Equal, Token.Value("foo")),
+            ":foo;;this is a value" to listOf(Token.Value("foo")),
+            ":foo\n\n\n" to listOf(Token.Value("foo"), Token.LineBreak, Token.LineBreak, Token.LineBreak)
+        ).map { (u, v) -> u to v + Token.EndOfFile }
+
+        for ((source, expected) in sourcesToExpected) {
+            val got = Lexer(source).lex()
+            assertEquals(expected, got)
+        }
+    }
+
+    @Test
+    fun `Values Trailing`() {
+        val source = ":foo:bar:baz"
+        val expected = listOf(
+            Token.Value("foo"),
+            Token.Value("bar"),
+            Token.Value("baz"),
+            Token.EndOfFile
+        )
+        val got = Lexer(source).lex()
+
+        assertEquals(expected, got)
+    }
+
+    @Test
+    fun `Empty value`() {
+        val sources = listOf(
+            ":",
+            ": ",
+            "::",
+            ":::",
+            ":;",
+            "(:)",
+            ":\n",
+            ":=",
+            ":foo:"
+        )
+
+        sources.forEach { v ->
+            assertThrows(Lexer.LexError::class.java) {
+                Lexer(v).lex()
+            }
+        }
+    }
 }

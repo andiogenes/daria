@@ -1,6 +1,8 @@
 package com.andiogenes.daria
 
 class Lexer(private val source: String) {
+    class LexError(message: String) : RuntimeException(message)
+
     private val tokens = arrayListOf<Token>()
 
     private var start: Int = 0
@@ -24,6 +26,7 @@ class Lexer(private val source: String) {
             '\n' -> addToken(Token.LineBreak)
             ';' -> eliminateComment()
             ' ', '\r', '\t' -> doNothing()
+            ':' -> addValue()
             else -> addIdentifier()
         }
     }
@@ -51,6 +54,22 @@ class Lexer(private val source: String) {
         val name = source.substring(start, current)
 
         addToken(Token.Identifier(name))
+    }
+
+    private fun addValue() {
+        val forbiddenSymbols = ":()=; \r\t\n"
+
+        while (peek() !in forbiddenSymbols && !isAtEnd()) {
+            advance()
+        }
+
+        val name = source.substring(start + 1, current)
+
+        if (name.isEmpty()) {
+            throw LexError("Empty value")
+        }
+
+        addToken(Token.Value(name))
     }
 
     private fun eliminateComment() {
