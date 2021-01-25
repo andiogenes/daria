@@ -3,22 +3,29 @@ package com.andiogenes.daria
 import com.andiogenes.daria.expressions.Pattern
 
 class PrettyPrinter {
-    fun eval(patterns: List<Pattern>) = patterns.forEach { eval(it) }
+    fun print(patterns: List<Pattern>) = patterns.forEach { print(it) }
 
-    private fun eval(pattern: Pattern): Unit = when (pattern) {
+    private fun print(pattern: Pattern, depth: Int = 0): Unit = when (pattern) {
         is Pattern.Definition ->
             definePattern(pattern.name, pattern.args, pattern.body)
         is Pattern.Invocation ->
-            invokePattern(pattern.name, pattern.args, depth = 0)
+            invokePattern(pattern.name, pattern.args, depth)
+        is Pattern.Value ->
+            valuePattern(pattern.name, depth)
     }
 
-    private fun invokePattern(name: String, args: List<Pattern.Invocation>, depth: Int = 1) {
+    private fun valuePattern(name: String, depth: Int) {
+        println("${"\t".repeat(depth)}val $name")
+    }
+
+    private fun invokePattern(name: String, args: List<Pattern>, depth: Int = 1) {
         println("${"\t".repeat(depth)}inv $name")
-        args.forEach { invokePattern(it.name, it.args, depth + 1) }
+        args.forEach { print(it, depth + 1) }
     }
 
-    private fun definePattern(name: String, args: List<String>, body: Pattern.Invocation) {
-        println("def $name: ${args.joinToString()}")
-        invokePattern(body.name, body.args)
+    private fun definePattern(name: String, args: List<Pattern>, body: Pattern) {
+        println("def $name")
+        args.forEach { print(it, 1) }
+        print(body, 2)
     }
 }
