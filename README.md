@@ -30,6 +30,9 @@ i x = x
 > i (or :false :true) ; => :true
 ```
 
+### Feedback
+You can suggest your ideas and comment the code via [Issues](https://github.com/andiogenes/daria/issues).
+
 ### Status
 [![travis-ci](https://travis-ci.com/andiogenes/daria.svg?branch=master)](https://travis-ci.com/github/andiogenes/daria)
 [![codecov](https://codecov.io/gh/andiogenes/daria/branch/master/graph/badge.svg)](https://codecov.io/gh/andiogenes/daria)
