@@ -28,6 +28,12 @@ i x = x
 > i :bar ; => :bar
 > i :baz ; => :baz
 > i (or :false :true) ; => :true
+
+; Conditionals
+if :true x _ = x
+if :false _ x = x
+
+> if (and (or :true :false) (or :false :true)) :foo :bar ; => :true
 ```
 
 ### Feedback
