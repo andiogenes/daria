@@ -3,7 +3,11 @@ package com.andiogenes.daria
 import com.andiogenes.daria.expressions.Pattern
 
 class Parser(private val tokens: List<Token>) {
-    class ParseError(message: String) : RuntimeException(message)
+    class ParseError(message: String) : RuntimeException(message) {
+        companion object {
+            fun unexpectedToken(): Nothing = throw ParseError("Unexpected token")
+        }
+    }
 
     private var current: Int = 0
 
@@ -23,7 +27,7 @@ class Parser(private val tokens: List<Token>) {
             is Token.Identifier -> token.name
             is Token.Value -> return Pattern.Value(token.name)
             is Token.LineBreak -> return null
-            else -> throw ParseError("Unexpected token")
+            else -> ParseError.unexpectedToken()
         }
 
         val (args, isDefinitionArgs) = commonArguments()
@@ -44,12 +48,12 @@ class Parser(private val tokens: List<Token>) {
                 when (peek()) {
                     is Token.LineBreak -> advance()
                     is Token.EndOfFile -> Unit
-                    else -> throw ParseError("Unexpected token")
+                    else -> ParseError.unexpectedToken()
                 }
 
                 return Pattern.Definition(name, args, patternInvocation)
             }
-            else -> throw ParseError("Unexpected token")
+            else -> ParseError.unexpectedToken()
         }
     }
 
@@ -61,7 +65,7 @@ class Parser(private val tokens: List<Token>) {
 
             when (peek()) {
                 is Token.RightParen -> advance()
-                else -> throw ParseError("Unexpected token")
+                else -> ParseError.unexpectedToken()
             }
 
             return pattern
@@ -74,7 +78,7 @@ class Parser(private val tokens: List<Token>) {
                 Pattern.Invocation(name, args)
             }
             is Token.Value -> Pattern.Value(token.name)
-            else -> throw ParseError("Unexpected token")
+            else -> ParseError.unexpectedToken()
         }
     }
 
@@ -116,7 +120,7 @@ class Parser(private val tokens: List<Token>) {
                     args.add(Pattern.Value(token.name))
                     advance()
                 }
-                else -> throw ParseError("Unexpected token")
+                else -> ParseError.unexpectedToken()
             }
         }
 
