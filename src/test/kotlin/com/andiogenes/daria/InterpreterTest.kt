@@ -1,9 +1,9 @@
 package com.andiogenes.daria
 
 import com.andiogenes.daria.expressions.Pattern
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-
-import org.junit.jupiter.api.Assertions.*
 
 internal class InterpreterTest {
     @Test
@@ -119,7 +119,6 @@ internal class InterpreterTest {
                 Pattern.Value("true")
             )
         )
-
 
         val query = Pattern.Invocation(
             "and",

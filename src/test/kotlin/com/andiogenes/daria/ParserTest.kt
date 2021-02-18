@@ -1,9 +1,10 @@
 package com.andiogenes.daria
 
 import com.andiogenes.daria.expressions.Pattern
+import org.junit.jupiter.api.Assertions.assertAll
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.function.Executable
 
 internal class ParserTest {
