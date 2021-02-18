@@ -43,7 +43,7 @@ class Parser(private val tokens: List<Token>) {
 
                 when (peek()) {
                     is Token.LineBreak -> advance()
-                    is Token.EndOfFile -> {}
+                    is Token.EndOfFile -> Unit
                     else -> throw ParseError("Unexpected token")
                 }
 
